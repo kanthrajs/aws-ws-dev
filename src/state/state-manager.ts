@@ -41,7 +41,7 @@ export async function processWebhookMessage(
       message.interactive?.list_reply
     ) {
       await handleListReply(
-        message.interactive.list_reply.title, // Use id instead of title
+        message.interactive.list_reply.id, // Use id instead of title
         userState,
         phoneNumberId,
         from

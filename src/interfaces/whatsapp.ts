@@ -10,7 +10,7 @@ export interface WhatsAppWebhookPayload {
           type: string;
           text?: { body: string };
           interactive?: {
-            list_reply?: { title: string };
+            list_reply?: { id: string; title: string }; // Added id field;
             button_reply?: { id: string };
           };
           from?: string;
