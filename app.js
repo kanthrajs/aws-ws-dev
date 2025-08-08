@@ -99,9 +99,9 @@ app.post('/', async (req, res) => {
                       {
                         title: 'Products',
                         rows: [
-                          { id: 'phone', title: 'Phone', description: '$500' },
-                          { id: 'laptop', title: 'Laptop', description: '$1000' },
-                          { id: 'tablet', title: 'Tablet', description: '$300' },
+                          { id: 'necklace', title: 'necklace', description: ' INR 50000' },
+                          { id: 'bangles', title: 'bangles', description: 'INR 10000' },
+                          { id: 'earings', title: 'earings', description: ' INR 30000' },
                         ],
                       },
                     ],
