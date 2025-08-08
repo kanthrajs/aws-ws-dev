@@ -129,7 +129,7 @@ async function handleTextMessage(
           header: { type: 'text', text: 'Order Confirmation' },
           body: {
             text: `📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: INR ${ratePerGram || 'N/A'
-              }/oz\n- Total Cost: INR ${totalCost}\nPlease confirm your order.`
+              }/gram\n- Total Cost: INR ${totalCost}\nPlease confirm your order.`
           },
           action: {
             buttons: [
