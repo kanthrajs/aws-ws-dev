@@ -22,7 +22,7 @@ export interface WhatsAppWebhookPayload {
 }
 
 export interface WhatsAppMessageContent {
-  body?: string;
+  body?: {text:string};
   type?: string;
   header?: { type: string; text: string };
   action?: {
