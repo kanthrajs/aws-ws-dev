@@ -16,21 +16,26 @@ app.use(express.json());
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
 const whatsappToken = process.env.WHATSAPP_TOKEN;
+const goldApiToken = process.env.GOLD_API_TOKEN; // GoldAPI token
 
-// In-memory storage for order state (for simplicity; use a database in production)
+// In-memory storage for order state and gold rate (use database in production)
 const orderState = new Map(); // Tracks user order progress: { wa_id: { step, product, quantity } }
+let goldRate = null; // Cache gold rate (in USD per ounce)
 
-// Route for webhook verification (GET)
-app.get('/', (req, res) => {
-  const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.verify_token': token } = req.query;
-
-  if (mode === 'subscribe' && token === verifyToken) {
-    console.log('WEBHOOK VERIFIED');
-    res.status(200).send(challenge);
-  } else {
-    res.status(403).end();
+// Function to fetch gold rate from GoldAPI
+async function fetchGoldRate() {
+  try {
+    const response = await axios.get('https://www.goldapi.io/api/XAU/USD', {
+      headers: { 'x-access-token': goldApiToken },
+    });
+    goldRate = response.data.price; // Price in USD per ounce
+    console.log(`Fetched gold rate: $${goldRate}/oz`);
+    return goldRate;
+  } catch (error) {
+    console.error('Error fetching gold rate:', error.response?.data || error.message);
+    return null; // Fallback to null if API fails
   }
-});
+}
 
 // Function to send a WhatsApp message
 async function sendWhatsAppMessage(phoneNumberId, to, messageType, content) {
@@ -57,6 +62,18 @@ async function sendWhatsAppMessage(phoneNumberId, to, messageType, content) {
     throw error;
   }
 }
+
+// Route for webhook verification (GET)
+app.get('/', (req, res) => {
+  const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.verify_token': token } = req.query;
+
+  if (mode === 'subscribe' && token === verifyToken) {
+    console.log('WEBHOOK VERIFIED');
+    res.status(200).send(challenge);
+  } else {
+    res.status(403).end();
+  }
+});
 
 // Route for handling incoming messages (POST)
 app.post('/', async (req, res) => {
@@ -87,7 +104,14 @@ app.post('/', async (req, res) => {
               const text = message.text.body.toLowerCase();
               const userState = orderState.get(from) || { step: 'idle' };
 
-              if (text === 'order' && userState.step === 'idle') {
+              if (text === 'hi' && userState.step === 'idle') {
+                // Fetch gold rate and send welcome message
+                const rate = await fetchGoldRate();
+                const welcomeText = rate
+                  ? `Welcome! Today's gold rate is $${rate} per ounce. Type 'order' to place an order.`
+                  : `Welcome! Unable to fetch gold rate at the moment. Type 'order' to place an order.`;
+                await sendWhatsAppMessage(phoneNumberId, from, 'text', { body: welcomeText });
+              } else if (text === 'order' && userState.step === 'idle') {
                 // Start order flow: Send product selection list
                 const productList = {
                   type: 'list',
@@ -112,13 +136,20 @@ app.post('/', async (req, res) => {
               } else if (userState.step === 'enter_quantity' && /^\d+$/.test(text)) {
                 // Handle quantity input
                 const quantity = parseInt(text);
+                const productWeights = { Phone: 0.01, Laptop: 0.02, Tablet: 0.005 }; // oz of gold
+                const weight = productWeights[userState.product] || 0.01;
+                const totalCost = goldRate ? (quantity * weight * goldRate).toFixed(2) : 'N/A';
                 orderState.set(from, { ...userState, quantity, step: 'confirm_order' });
 
-                // Send confirmation with buttons
+                // Send confirmation with detailed summary
                 const confirmation = {
                   type: 'button',
                   header: { type: 'text', text: 'Order Confirmation' },
-                  body: { text: `Order: ${quantity} ${userState.product}(s). Confirm?` },
+                  body: {
+                    text: `Order Summary:\nProduct: ${userState.product}\nQuantity: ${quantity}\nGold Rate: $${
+                      goldRate || 'N/A'
+                    }/oz\nTotal Cost: $${totalCost}\nConfirm?`,
+                  },
                   action: {
                     buttons: [
                       { type: 'reply', reply: { id: 'confirm', title: 'Confirm' } },
@@ -128,7 +159,7 @@ app.post('/', async (req, res) => {
                 };
                 await sendWhatsAppMessage(phoneNumberId, from, 'interactive', confirmation);
               } else {
-                // Default echo response for non-order or invalid input
+                // Default echo response
                 const responseText = { body: `Echo: ${message.text.body}` };
                 await sendWhatsAppMessage(phoneNumberId, from, 'text', responseText);
               }
