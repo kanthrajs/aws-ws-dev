@@ -1,7 +1,7 @@
 // Import required modules
 const express = require('express');
 const dotenv = require('dotenv');
-const axios = require('axios'); // For sending messages
+const axios = require('axios');
 
 // Load configuration from .env file
 dotenv.config();
@@ -15,7 +15,10 @@ app.use(express.json());
 // Set port and environment variables
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
-const whatsappToken = process.env.WHATSAPP_TOKEN; // WhatsApp Access Token
+const whatsappToken = process.env.WHATSAPP_TOKEN;
+
+// In-memory storage for order state (for simplicity; use a database in production)
+const orderState = new Map(); // Tracks user order progress: { wa_id: { step, product, quantity } }
 
 // Route for webhook verification (GET)
 app.get('/', (req, res) => {
@@ -47,7 +50,7 @@ async function sendWhatsAppMessage(phoneNumberId, to, messageType, content) {
       },
     });
 
-    console.log(`Message sent successfully: ${JSON.stringify(response.data, null, 2)}`);
+    console.log(`Message sent to ${to}: ${JSON.stringify(response.data, null, 2)}`);
     return response.data;
   } catch (error) {
     console.error('Error sending WhatsApp message:', error.response?.data || error.message);
@@ -61,14 +64,13 @@ app.post('/', async (req, res) => {
   console.log(`\nWebhook received ${timestamp}\n`);
   console.log(JSON.stringify(req.body, null, 2));
 
-  // Verify webhook payload
   if (req.body.object === 'whatsapp_business_account') {
     const entries = req.body.entry || [];
     for (const entry of entries) {
       const changes = entry.changes || [];
       for (const change of changes) {
         if (change.field === 'messages' && change.value?.messages) {
-          // Extract PHONE_NUMBER_ID from the payload
+          // Extract PHONE_NUMBER_ID
           const phoneNumberId = change.value.metadata?.phone_number_id;
           if (!phoneNumberId) {
             console.error('PHONE_NUMBER_ID not found in webhook payload');
@@ -80,14 +82,81 @@ app.post('/', async (req, res) => {
           const from = change.value.contacts?.[0]?.wa_id;
 
           for (const message of messages) {
+            // Handle text messages
             if (message.type === 'text' && message.text?.body) {
-              console.log(`Received text message from ${from} on phone_number_id ${phoneNumberId}: ${message.text.body}`);
+              const text = message.text.body.toLowerCase();
+              const userState = orderState.get(from) || { step: 'idle' };
 
-              // Respond with a simple echo text message
-              const responseText = {
-                body: `Echo: ${message.text.body}`,
-              };
-              await sendWhatsAppMessage(phoneNumberId, from, 'text', responseText);
+              if (text === 'order' && userState.step === 'idle') {
+                // Start order flow: Send product selection list
+                const productList = {
+                  type: 'list',
+                  header: { type: 'text', text: 'Select a Product' },
+                  body: { text: 'Choose a product to order:' },
+                  action: {
+                    button: 'Choose Product',
+                    sections: [
+                      {
+                        title: 'Products',
+                        rows: [
+                          { id: 'phone', title: 'Phone', description: '$500' },
+                          { id: 'laptop', title: 'Laptop', description: '$1000' },
+                          { id: 'tablet', title: 'Tablet', description: '$300' },
+                        ],
+                      },
+                    ],
+                  },
+                };
+                orderState.set(from, { step: 'select_product' });
+                await sendWhatsAppMessage(phoneNumberId, from, 'interactive', productList);
+              } else if (userState.step === 'enter_quantity' && /^\d+$/.test(text)) {
+                // Handle quantity input
+                const quantity = parseInt(text);
+                orderState.set(from, { ...userState, quantity, step: 'confirm_order' });
+
+                // Send confirmation with buttons
+                const confirmation = {
+                  type: 'button',
+                  header: { type: 'text', text: 'Order Confirmation' },
+                  body: { text: `Order: ${quantity} ${userState.product}(s). Confirm?` },
+                  action: {
+                    buttons: [
+                      { type: 'reply', reply: { id: 'confirm', title: 'Confirm' } },
+                      { type: 'reply', reply: { id: 'cancel', title: 'Cancel' } },
+                    ],
+                  },
+                };
+                await sendWhatsAppMessage(phoneNumberId, from, 'interactive', confirmation);
+              } else {
+                // Default echo response for non-order or invalid input
+                const responseText = { body: `Echo: ${message.text.body}` };
+                await sendWhatsAppMessage(phoneNumberId, from, 'text', responseText);
+              }
+            }
+            // Handle interactive messages (product selection or confirmation)
+            else if (message.type === 'interactive' && message.interactive?.list_reply) {
+              const userState = orderState.get(from) || { step: 'idle' };
+              if (userState.step === 'select_product') {
+                const product = message.interactive.list_reply.title;
+                orderState.set(from, { step: 'enter_quantity', product });
+                const responseText = { body: `Please enter the quantity for ${product}` };
+                await sendWhatsAppMessage(phoneNumberId, from, 'text', responseText);
+              }
+            } else if (message.type === 'interactive' && message.interactive?.button_reply) {
+              const userState = orderState.get(from) || { step: 'idle' };
+              if (userState.step === 'confirm_order') {
+                const reply = message.interactive.button_reply.id;
+                if (reply === 'confirm') {
+                  const orderId = Math.random().toString(36).substr(2, 8).toUpperCase();
+                  const responseText = { body: `Order confirmed! Order ID: ${orderId}` };
+                  await sendWhatsAppMessage(phoneNumberId, from, 'text', responseText);
+                  orderState.delete(from); // Reset state
+                } else if (reply === 'cancel') {
+                  const responseText = { body: 'Order cancelled.' };
+                  await sendWhatsAppMessage(phoneNumberId, from, 'text', responseText);
+                  orderState.delete(from); // Reset state
+                }
+              }
             }
           }
         }
