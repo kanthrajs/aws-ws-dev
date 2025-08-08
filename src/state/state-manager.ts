@@ -78,7 +78,7 @@ async function handleTextMessage(
     case STATES.IDLE:
       if (normalizedText === 'hi') {
         const rate = await fetchGoldRate();
-        const ratePerGram = rate ? (rate / 31.1) : rate;
+        const ratePerGram = rate ? (rate / 31.1).toFixed(2): rate;
         const welcomeText = rate
           ? `Welcome to our store! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'order' to start shopping.`
           : `Welcome to our store! 🌟 Unable to fetch gold rate at the moment. Type 'order' to start shopping.`;
@@ -102,7 +102,7 @@ async function handleTextMessage(
         orderState.set(from, { step: STATES.SELECT_PRODUCT });
       } else if (normalizedText === 'hi') {
         const rate = await fetchGoldRate();
-        const ratePerGram = rate ? (rate / 31.1) : rate;
+        const ratePerGram = rate ? (rate / 31.1).toFixed(2) : rate;
         // Reuse the welcome message logic  
         const welcomeText = rate
           ? `Welcome back! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'order' to start shopping.`
@@ -122,8 +122,8 @@ async function handleTextMessage(
         const quantity = parseInt(normalizedText);
         const weight = productWeights[userState.product!] || 0.01;
         const rate = await fetchGoldRate();
-        const ratePerGram = rate ? (rate / 31.1) :rate;
-        const totalCost = ratePerGram ? (quantity * weight * ratePerGram).toFixed(2) : rate;
+        const ratePerGram = rate ? (rate / 31.1).toFixed(2) :rate;
+        const totalCost = ratePerGram ? (quantity * weight * Number(ratePerGram)).toFixed(2) : rate;
         const confirmation = {
           type: 'button',
           header: { type: 'text', text: 'Order Confirmation' },
