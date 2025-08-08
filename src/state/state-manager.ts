@@ -6,9 +6,8 @@ import {
 import { type WhatsAppWebhookPayload } from '../interfaces/whatsapp.js';
 import { sendWhatsAppMessage } from '../services/whatsapp.service.js';
 import { fetchGoldRate } from '../services/gold-api.service.js';
-import { getMainMenu, getLanguageMenu } from '../utils/menu-options.js';
+import { getMainMenu, getLanguageMenu, getCreateOrderMenu } from '../utils/menu-options.js';
 import type { Language } from '../utils/menu-options.js';
-// import logger from '../logger.js';
 
 // In-memory state storage (use Redis or database in production)
 const orderState: Map<string, UserState> = new Map();
@@ -42,7 +41,7 @@ export async function processWebhookMessage(
       message.interactive?.list_reply
     ) {
       await handleListReply(
-        message.interactive.list_reply.title,
+        message.interactive.list_reply.title, // Use id instead of title
         userState,
         phoneNumberId,
         from
@@ -70,6 +69,14 @@ async function sendMainMenu(phoneNumberId: string, to: string, language: Languag
 }
 
 /**
+ * Sends the create order menu.
+ */
+async function sendCreateOrderMenu(phoneNumberId: string, to: string, language: Language = 'english'): Promise<void> {
+  const createOrderMenu = getCreateOrderMenu(language);
+  await sendWhatsAppMessage(phoneNumberId, to,'interactive', createOrderMenu);
+}
+
+/**
  * Handles text messages based on the current state.
  */
 async function handleTextMessage(
@@ -94,8 +101,8 @@ async function handleTextMessage(
         });
         orderState.set(from, { step: STATES.WELCOME_SENT, language });
       } else if (normalizedText === 'order') {
-        await sendProductList(phoneNumberId, from);
-        orderState.set(from, { step: STATES.SELECT_PRODUCT, language });
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+        orderState.set(from, { step: STATES.CREATE_ORDER, language });
       } else if (normalizedText === 'menu') {
         await sendMainMenu(phoneNumberId, from, language);
         orderState.set(from, { step: STATES.MAIN_MENU, language });
@@ -108,8 +115,8 @@ async function handleTextMessage(
 
     case STATES.WELCOME_SENT:
       if (normalizedText === 'order') {
-        await sendProductList(phoneNumberId, from);
-        orderState.set(from, { step: STATES.SELECT_PRODUCT, language });
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+        orderState.set(from, { step: STATES.CREATE_ORDER, language });
       } else if (normalizedText === 'menu') {
         await sendMainMenu(phoneNumberId, from, language);
         orderState.set(from, { step: STATES.MAIN_MENU, language });
@@ -125,6 +132,30 @@ async function handleTextMessage(
       } else {
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
           body: "Ready to shop or explore? Type 'order' to browse products or 'menu' for more options. 😊",
+        });
+      }
+      break;
+
+    case STATES.CREATE_ORDER:
+      if (normalizedText === 'order') {
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+      } else if (normalizedText === 'menu') {
+        await sendMainMenu(phoneNumberId, from, language);
+        orderState.set(from, { step: STATES.MAIN_MENU, language });
+      } else if (normalizedText === 'hi') {
+        const rate = await fetchGoldRate();
+        const ratePerGram = rate ? (rate / 31.1).toFixed(2) : rate;
+        const welcomeText = rate
+          ? `Welcome back! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'menu' or 'order' to proceed.`
+          : `Welcome back! 🌟 Unable to fetch gold rate. Type 'menu' or 'order' to proceed.`;
+        await sendWhatsAppMessage(phoneNumberId, from, 'text', {
+          body: welcomeText,
+        });
+        orderState.set(from, { step: STATES.WELCOME_SENT, language });
+      } else {
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+        await sendWhatsAppMessage(phoneNumberId, from, 'text', {
+          body: 'Please select an option from the Create Order menu. 📋',
         });
       }
       break;
@@ -179,8 +210,8 @@ async function handleTextMessage(
 
     case STATES.MAIN_MENU:
       if (normalizedText === 'order') {
-        await sendProductList(phoneNumberId, from);
-        orderState.set(from, { step: STATES.SELECT_PRODUCT, language });
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+        orderState.set(from, { step: STATES.CREATE_ORDER, language });
       } else if (normalizedText === 'menu') {
         await sendMainMenu(phoneNumberId, from, language);
       } else if (normalizedText === 'hi') {
@@ -210,44 +241,46 @@ async function handleTextMessage(
 }
 
 /**
- * Handles interactive list replies (product selection or main menu options).
+ * Handles interactive list replies (menu selections, product selection, or language selection).
  */
 async function handleListReply(
-  title: string,
+  id: string, // Use id for selections
   userState: UserState,
   phoneNumberId: string,
   from: string
 ): Promise<void> {
   const language = userState.language || 'english';
 
-  if (userState.step === STATES.SELECT_PRODUCT) {
-    orderState.set(from, { step: STATES.ENTER_QUANTITY, product: title, language });
-    await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-      body: `Great choice! Please enter the quantity for ${title} (e.g., 2).`,
-    });
-  } else if (userState.step === STATES.MAIN_MENU) {
-    switch (title) {
-      case 'View Purchase Points':
+  if (userState.step === STATES.MAIN_MENU) {
+    switch (id) {
+      case 'view_points':
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: 'You have 100 loyalty points. 🎉 Type "menu" to return to the main menu.',
+          body: 'You have 100 loyalty points. 🎉',
         });
+        await sendMainMenu(phoneNumberId, from, language);
         orderState.set(from, { step: STATES.MAIN_MENU, language });
         break;
-      case 'My Orders':
+      case 'view_orders':
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: 'You have no recent orders. Type "order" to start shopping or "menu" to return. 📦',
+          body: 'You have no recent orders. 📦',
         });
+        await sendMainMenu(phoneNumberId, from, language);
         orderState.set(from, { step: STATES.MAIN_MENU, language });
         break;
-      case 'Contact Support':
+      case 'contact_support':
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: 'Contact us at support@example.com or call +91-123-456-7890. Type "menu" to return. 📞',
+          body: 'Contact us at support@example.com or call +91-123-456-7890. 📞',
         });
+        await sendMainMenu(phoneNumberId, from, language);
         orderState.set(from, { step: STATES.MAIN_MENU, language });
         break;
-      case 'Change Language':
+      case 'change_language':
         await sendWhatsAppMessage(phoneNumberId, from, 'interactive', getLanguageMenu());
         orderState.set(from, { step: STATES.CHANGE_LANGUAGE, language });
+        break;
+      case 'create_order':
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+        orderState.set(from, { step: STATES.CREATE_ORDER, language });
         break;
       default:
         await sendMainMenu(phoneNumberId, from, language);
@@ -255,19 +288,40 @@ async function handleListReply(
           body: 'Please select a valid option from the menu. 📋',
         });
     }
+  } else if (userState.step === STATES.CREATE_ORDER) {
+    switch (id) {
+      case 'browse_products':
+        await sendProductList(phoneNumberId, from);
+        orderState.set(from, { step: STATES.SELECT_PRODUCT, language });
+        break;
+      case 'back_to_main':
+        await sendMainMenu(phoneNumberId, from, language);
+        orderState.set(from, { step: STATES.MAIN_MENU, language });
+        break;
+      default:
+        await sendCreateOrderMenu(phoneNumberId, from, language);
+        await sendWhatsAppMessage(phoneNumberId, from, 'text', {
+          body: 'Please select a valid option from the Create Order menu. 📋',
+        });
+    }
+  } else if (userState.step === STATES.SELECT_PRODUCT) {
+    orderState.set(from, { step: STATES.ENTER_QUANTITY, product: id, language });
+    await sendWhatsAppMessage(phoneNumberId, from, 'text', {
+      body: `Great choice! Please enter the quantity for ${id} (e.g., 2).`,
+    });
   } else if (userState.step === STATES.CHANGE_LANGUAGE) {
     let newLanguage: Language = 'english';
-    switch (title) {
-      case 'English':
+    switch (id) {
+      case 'lang_english':
         newLanguage = 'english';
         break;
-      case 'Kannada':
+      case 'lang_kannada':
         newLanguage = 'kannada';
         break;
-      case 'Tamil':
+      case 'lang_tamil':
         newLanguage = 'tamil';
         break;
-      case 'Telugu':
+      case 'lang_telugu':
         newLanguage = 'telugu';
         break;
       default:
@@ -278,7 +332,7 @@ async function handleListReply(
         return;
     }
     await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-      body: `Language changed to ${title}! 🌐`,
+      body: `Language changed to ${newLanguage}! 🌐`,
     });
     await sendMainMenu(phoneNumberId, from, newLanguage);
     orderState.set(from, { step: STATES.MAIN_MENU, language: newLanguage });
@@ -331,9 +385,9 @@ async function sendProductList(
         {
           title: 'Products',
           rows: [
-            { id: 'necklace', title: 'necklace', description: ' INR 50000' },
-            { id: 'bangles', title: 'bangles', description: 'INR 10000' },
-            { id: 'earings', title: 'earings', description: ' INR 30000' },
+            { id: 'necklace', title: 'Necklace', description: 'INR 50000' },
+            { id: 'bangles', title: 'Bangles', description: 'INR 10000' },
+            { id: 'earings', title: 'Earrings', description: 'INR 30000' }, // Fixed typo in 'earings'
           ],
         },
       ],

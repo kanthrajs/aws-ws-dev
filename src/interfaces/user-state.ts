@@ -7,6 +7,7 @@ export const STATES = {
   CONFIRM_ORDER: 'CONFIRM_ORDER',
   MAIN_MENU: 'MAIN_MENU', // New state
   CHANGE_LANGUAGE: 'CHANGE_LANGUAGE', // New state for language selection
+  CREATE_ORDER: 'CREATE_ORDER', // New state for Create Order menu
 } as const;
 
 export type StateType = (typeof STATES)[keyof typeof STATES];
