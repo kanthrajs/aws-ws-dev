@@ -29,7 +29,8 @@ async function fetchGoldRate() {
       headers: { 'x-access-token': goldApiToken },
     });
     goldRate = response.data.price; // Price in INR per ounce
-    console.log(`Fetched gold rate: $${goldRate}/oz`);
+    goldRateInGrams = (response.data.price)/28; // Price in INR per gram
+    console.log(`Fetched gold rate: INR ${goldRate}/oz`);
     return goldRate;
   } catch (error) {
     console.error('Error fetching gold rate:', error.response?.data || error.message);
@@ -107,11 +108,18 @@ app.post('/', async (req, res) => {
               if (text === 'hi' && userState.step === 'idle') {
                 // Fetch gold rate and send welcome message
                 const rate = await fetchGoldRate();
+                const rateinGrams = (rate/28).toFixed(2);
                 const welcomeText = rate
-                  ? `Welcome! Today's gold rate is $${rate} per ounce. Type 'order' to place an order.`
+                  ? `Welcome! Today's gold rate is $${rate} per ounce (₹${rateinGrams} per gram). Type 'order' to place an order.`
                   : `Welcome! Unable to fetch gold rate at the moment. Type 'order' to place an order.`;
                 await sendWhatsAppMessage(phoneNumberId, from, 'text', { body: welcomeText });
-              } else if (text === 'order' && userState.step === 'idle') {
+              }
+                // const welcomeText = rate
+                //   ? `Welcome! Today's gold rate is $${rate} per ounce. Type 'order' to place an order.`
+                //   : `Welcome! Unable to fetch gold rate at the moment. Type 'order' to place an order.`;
+              //   await sendWhatsAppMessage(phoneNumberId, from, 'text', { body: welcomeText });
+              // } 
+              else if (text === 'order' && userState.step === 'idle') {
                 // Start order flow: Send product selection list
                 const productList = {
                   type: 'list',
