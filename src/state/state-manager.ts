@@ -12,9 +12,9 @@ import { fetchGoldRate } from '../services/gold-api.service.js';
 // In-memory state storage (use Redis or database in production)
 const orderState: Map<string, UserState> = new Map();
 const productWeights: { [key: string]: number } = {
-  Phone: 0.01,
-  Laptop: 0.02,
-  Tablet: 0.005,
+  necklace: 120,
+  bangles: 50,
+  earings: 20,
 };
 
 /**
@@ -78,8 +78,9 @@ async function handleTextMessage(
     case STATES.IDLE:
       if (normalizedText === 'hi') {
         const rate = await fetchGoldRate();
+        const ratePerGram = rate ? (rate / 31.1) : rate;
         const welcomeText = rate
-          ? `Welcome to our store! 🌟 Today's gold rate is $${rate} per ounce. Type 'order' to start shopping.`
+          ? `Welcome to our store! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'order' to start shopping.`
           : `Welcome to our store! 🌟 Unable to fetch gold rate at the moment. Type 'order' to start shopping.`;
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
           body: welcomeText,
@@ -101,8 +102,10 @@ async function handleTextMessage(
         orderState.set(from, { step: STATES.SELECT_PRODUCT });
       } else if (normalizedText === 'hi') {
         const rate = await fetchGoldRate();
+        const ratePerGram = rate ? (rate / 31.1) : rate;
+        // Reuse the welcome message logic  
         const welcomeText = rate
-          ? `Welcome back! 🌟 Today's gold rate is $${rate} per ounce. Type 'order' to start shopping.`
+          ? `Welcome back! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'order' to start shopping.`
           : `Welcome back! 🌟 Unable to fetch gold rate. Type 'order' to start shopping.`;
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
           body: welcomeText,
@@ -119,13 +122,15 @@ async function handleTextMessage(
         const quantity = parseInt(normalizedText);
         const weight = productWeights[userState.product!] || 0.01;
         const rate = await fetchGoldRate();
-        const totalCost = rate ? (quantity * weight * rate).toFixed(2) : 'N/A';
+        const ratePerGram = rate ? (rate / 31.1) :rate;
+        const totalCost = ratePerGram ? (quantity * weight * ratePerGram).toFixed(2) : rate;
         const confirmation = {
           type: 'button',
           header: { type: 'text', text: 'Order Confirmation' },
-          body: {text:`📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: $${
-            rate || 'N/A'
-          }/oz\n- Total Cost: $${totalCost}\nPlease confirm your order.`},
+          body: {
+            text: `📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: INR ${ratePerGram || 'N/A'
+              }/oz\n- Total Cost: INR ${totalCost}\nPlease confirm your order.`
+          },
           action: {
             buttons: [
               { type: 'reply', reply: { id: 'confirm', title: 'Confirm ✅' } },
@@ -215,16 +220,16 @@ async function sendProductList(
   const productList = {
     type: 'list',
     header: { type: 'text', text: 'Select a Product' },
-    body: {text:'Browse our products and choose one to order:'},
+    body: { text: 'Browse our products and choose one to order:' },
     action: {
       button: 'Choose Product',
       sections: [
         {
           title: 'Products',
           rows: [
-            { id: 'phone', title: 'Phone', description: '0.01 oz of gold' },
-            { id: 'laptop', title: 'Laptop', description: '0.02 oz of gold' },
-            { id: 'tablet', title: 'Tablet', description: '0.005 oz of gold' },
+            { id: 'necklace', title: 'necklace', description: ' INR 50000' },
+            { id: 'bangles', title: 'bangles', description: 'INR 10000' },
+            { id: 'earings', title: 'earings', description: ' INR 30000' },
           ],
         },
       ],
