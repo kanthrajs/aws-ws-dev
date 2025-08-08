@@ -123,9 +123,9 @@ async function handleTextMessage(
         const confirmation = {
           type: 'button',
           header: { type: 'text', text: 'Order Confirmation' },
-          body: `📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: $${
+          body: {text:`📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: $${
             rate || 'N/A'
-          }/oz\n- Total Cost: $${totalCost}\nPlease confirm your order.`,
+          }/oz\n- Total Cost: $${totalCost}\nPlease confirm your order.`},
           action: {
             buttons: [
               { type: 'reply', reply: { id: 'confirm', title: 'Confirm ✅' } },
@@ -215,7 +215,7 @@ async function sendProductList(
   const productList = {
     type: 'list',
     header: { type: 'text', text: 'Select a Product' },
-    body: 'Browse our products and choose one to order:',
+    body: {text:'Browse our products and choose one to order:'},
     action: {
       button: 'Choose Product',
       sections: [
