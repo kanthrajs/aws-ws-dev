@@ -25,10 +25,10 @@ let goldRate = null; // Cache gold rate (in USD per ounce)
 // Function to fetch gold rate from GoldAPI
 async function fetchGoldRate() {
   try {
-    const response = await axios.get('https://www.goldapi.io/api/XAU/USD', {
+    const response = await axios.get('https://www.goldapi.io/api/XAU/INR', {
       headers: { 'x-access-token': goldApiToken },
     });
-    goldRate = response.data.price; // Price in USD per ounce
+    goldRate = response.data.price; // Price in INR per ounce
     console.log(`Fetched gold rate: $${goldRate}/oz`);
     return goldRate;
   } catch (error) {
