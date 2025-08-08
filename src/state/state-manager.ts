@@ -82,7 +82,7 @@ async function handleTextMessage(
           ? `Welcome to our store! 🌟 Today's gold rate is $${rate} per ounce. Type 'order' to start shopping.`
           : `Welcome to our store! 🌟 Unable to fetch gold rate at the moment. Type 'order' to start shopping.`;
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: {text : welcomeText},
+          body: welcomeText,
         });
         orderState.set(from, { step: STATES.WELCOME_SENT });
       } else if (normalizedText === 'order') {
@@ -90,7 +90,7 @@ async function handleTextMessage(
         orderState.set(from, { step: STATES.SELECT_PRODUCT });
       } else {
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: {text:"Hi there! Type 'hi' for a welcome message or 'order' to start shopping. 😊"},
+          body: "Hi there! Type 'hi' for a welcome message or 'order' to start shopping. 😊",
         });
       }
       break;
@@ -105,11 +105,11 @@ async function handleTextMessage(
           ? `Welcome back! 🌟 Today's gold rate is $${rate} per ounce. Type 'order' to start shopping.`
           : `Welcome back! 🌟 Unable to fetch gold rate. Type 'order' to start shopping.`;
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: {text:welcomeText},
+          body: welcomeText,
         });
       } else {
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: {text:"Ready to shop? Type 'order' to browse products. 😊"},
+          body: "Ready to shop? Type 'order' to browse products. 😊",
         });
       }
       break;
@@ -123,8 +123,9 @@ async function handleTextMessage(
         const confirmation = {
           type: 'button',
           header: { type: 'text', text: 'Order Confirmation' },
-          body: {text:`📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: $${rate || 'N/A'
-            }/oz\n- Total Cost: $${totalCost}\nPlease confirm your order.`},
+          body: `📋 Order Summary:\n- Product: ${userState.product}\n- Quantity: ${quantity}\n- Gold Rate: $${
+            rate || 'N/A'
+          }/oz\n- Total Cost: $${totalCost}\nPlease confirm your order.`,
           action: {
             buttons: [
               { type: 'reply', reply: { id: 'confirm', title: 'Confirm ✅' } },
@@ -145,7 +146,7 @@ async function handleTextMessage(
         );
       } else {
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: {text:`Please enter a valid number for ${userState.product} quantity (e.g., 2).`},
+          body: `Please enter a valid number for ${userState.product} quantity (e.g., 2).`,
         });
       }
       break;
@@ -154,10 +155,9 @@ async function handleTextMessage(
     case STATES.CONFIRM_ORDER:
       await sendWhatsAppMessage(phoneNumberId, from, 'text', {
         body:
-        {text:
           userState.step === STATES.SELECT_PRODUCT
             ? 'Please select a product from the list provided. 📋'
-            : 'Please use the Confirm or Cancel buttons to proceed. ✅❌'},
+            : 'Please use the Confirm or Cancel buttons to proceed. ✅❌',
       });
       break;
   }
@@ -175,7 +175,7 @@ async function handleListReply(
   if (userState.step === STATES.SELECT_PRODUCT) {
     orderState.set(from, { step: STATES.ENTER_QUANTITY, product });
     await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-      body: {text:`Great choice! Please enter the quantity for ${product} (e.g., 2).`},
+      body: `Great choice! Please enter the quantity for ${product} (e.g., 2).`,
     });
   }
 }
@@ -193,12 +193,12 @@ async function handleButtonReply(
     if (replyId === 'confirm') {
       const orderId = Math.random().toString(36).substr(2, 8).toUpperCase();
       await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-        body: {text: `🎉 Order confirmed! Order ID: ${orderId}. Type 'order' to shop again or 'hi' for the welcome message.`},
+        body: `🎉 Order confirmed! Order ID: ${orderId}. Type 'order' to shop again or 'hi' for the welcome message.`,
       });
       orderState.delete(from);
     } else if (replyId === 'cancel') {
       await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-        body: {text:`Order cancelled. 😔 Type 'order' to start a new order or 'hi' for the welcome message.`},
+        body: `Order cancelled. 😔 Type 'order' to start a new order or 'hi' for the welcome message.`,
       });
       orderState.delete(from);
     }
@@ -215,16 +215,16 @@ async function sendProductList(
   const productList = {
     type: 'list',
     header: { type: 'text', text: 'Select a Product' },
-    body: { text: 'Browse our products and choose one to order:' },
+    body: 'Browse our products and choose one to order:',
     action: {
       button: 'Choose Product',
       sections: [
         {
           title: 'Products',
           rows: [
-            { id: 'necklace', title: 'necklace', description: ' INR 50000' },
-            { id: 'bangles', title: 'bangles', description: 'INR 10000' },
-            { id: 'earings', title: 'earings', description: ' INR 30000' },
+            { id: 'phone', title: 'Phone', description: '0.01 oz of gold' },
+            { id: 'laptop', title: 'Laptop', description: '0.02 oz of gold' },
+            { id: 'tablet', title: 'Tablet', description: '0.005 oz of gold' },
           ],
         },
       ],
