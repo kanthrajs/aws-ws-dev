@@ -94,8 +94,8 @@ async function handleTextMessage(
         const rate = await fetchGoldRate();
         const ratePerGram = rate ? (rate / 31.1).toFixed(2) : rate;
         const welcomeText = rate
-          ? `Welcome to our store! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'menu' to see options or 'order' to start shopping.`
-          : `Welcome to our store! 🌟 Unable to fetch gold rate. Type 'menu' to see options or 'order' to start shopping.`;
+          ? `Welcome to Sree Lakshmi Jewellers Whatsapp store! 🌟 Today's gold rate is INR ${ratePerGram} per gram. Type 'menu' to see options or 'order' to start shopping.`
+          : `Welcome to Sree Lakshmi Jewellers Whatsapp store! 🌟 Unable to fetch gold rate. Type 'menu' to see options or 'order' to start shopping.`;
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
           body: welcomeText,
         });
@@ -269,7 +269,7 @@ async function handleListReply(
         break;
       case 'contact_support':
         await sendWhatsAppMessage(phoneNumberId, from, 'text', {
-          body: 'Contact us at support@example.com or call +91-123-456-7890. 📞',
+          body: 'Contact us at ragu395@gamil.com or call +91-94482-61555. 📞',
         });
         await sendMainMenu(phoneNumberId, from, language);
         orderState.set(from, { step: STATES.MAIN_MENU, language });
