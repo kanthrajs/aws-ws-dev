@@ -1,5 +1,47 @@
-/node_modules
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
 
-*.env
+# Build artifacts
+dist/
+*.js.map
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Testing and coverage
+coverage/
+.nyc_output/
+
+# Dependency caches
+.pnp/
+.pnp.js
+
+# Miscellaneous
+*.swp
+*.swo
+*.tmp
 
 *.pem

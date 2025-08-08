@@ -42,6 +42,9 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
